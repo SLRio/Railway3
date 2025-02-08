@@ -104,8 +104,9 @@
             
             <div class="data-container"><b>
                 <h2>Rainfall Level and Ammonia Gas Level</h2>
+                <!-- Rainfall Level: will first try to show data from topic "Rainfall". If none, it falls back to data from "Methane". -->
                 <p>Rainfall Level: <span id="garbageAmount">Loading...</span></p>
-                <!-- For Ammonia Gas Level, we now fetch the newest DB record where topic = "Garbage" -->
+                <!-- Ammonia Gas Level: always fetched from topic "Garbage" -->
                 <p>Ammonia Gas Level: <span id="methaneAmount">Loading...</span></p>
             </b></div>
             <br/><br/>
@@ -147,16 +148,25 @@
   // --- Fetch the Latest Rainfall Value from the Database ---
   async function updateRainfallValue() {
     try {
-      // Assuming rainfall data is stored with topic "Rainfall"
-      const response = await fetch('/data?topic=Rainfall');
-      const records = await response.json();
+      // Try fetching data for the "Rainfall" topic first.
+      let response = await fetch('/data?topic=Rainfall');
+      let records = await response.json();
       if (records.length > 0) {
-        // Sort by date descending to get the newest record first
+        // Sort records descending by date (newest first)
         records.sort((a, b) => new Date(b.date) - new Date(a.date));
         const latestRecord = records[0];
         document.getElementById('garbageAmount').innerText = latestRecord.value + " cm";
       } else {
-        document.getElementById('garbageAmount').innerText = "No Data";
+        // No Rainfall data available; fallback to newest data from the "Methane" topic.
+        response = await fetch('/data?topic=Methane');
+        const fallbackRecords = await response.json();
+        if (fallbackRecords.length > 0) {
+          fallbackRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+          const fallbackRecord = fallbackRecords[0];
+          document.getElementById('garbageAmount').innerText = fallbackRecord.value + " cm (from Methane)";
+        } else {
+          document.getElementById('garbageAmount').innerText = "No Data";
+        }
       }
     } catch (error) {
       console.error("Error fetching rainfall value:", error);
@@ -170,7 +180,6 @@
       const response = await fetch('/data?topic=Garbage');
       const records = await response.json();
       if (records.length > 0) {
-        // Sort by date descending to get the newest record first
         records.sort((a, b) => new Date(b.date) - new Date(a.date));
         const latestRecord = records[0];
         document.getElementById('methaneAmount').innerText = latestRecord.value + " ppm";
@@ -187,7 +196,7 @@
   window.onload = () => {
     updateRainfallValue();
     updateAmmoniaValue();
-    // Optionally, update values at intervals (e.g., every 30 seconds):
+    // Optionally, update values periodically:
     // setInterval(() => {
     //   updateRainfallValue();
     //   updateAmmoniaValue();
