@@ -19,8 +19,9 @@ mongoose
 // Define Mongoose Schema and Model
 // ---------------------------
 const recordSchema = new mongoose.Schema({
-  value: Number,   // store the numeric value
-  date: String     // store timestamp as a string (ISO format)
+  value: Number,   // numeric sensor value
+  date: String,    // timestamp (ISO format)
+  topic: String    // MQTT topic (e.g., "Garbage", "Rainfall", etc.)
 });
 
 // Include virtual "id" when converting to JSON
@@ -34,7 +35,7 @@ const Record = mongoose.model('Record', recordSchema);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (graph.html, crud.html, etc.) from the current directory
+// Serve static files (graph.html, crud.html, home.html, Agraph.html, Acurd.html, etc.) from the current directory
 app.use(express.static(__dirname));
 
 // ---------------------------
@@ -43,11 +44,17 @@ app.use(express.static(__dirname));
 
 /**
  * GET /data
- * Retrieves all records from the database.
+ * Retrieves records from the database.
+ * Optionally, filter by topic using ?topic=YourTopic
  */
 app.get('/data', async (req, res) => {
+  const topic = req.query.topic;
+  let query = {};
+  if (topic) {
+    query.topic = topic;
+  }
   try {
-    const records = await Record.find();
+    const records = await Record.find(query);
     res.json(records);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -57,15 +64,15 @@ app.get('/data', async (req, res) => {
 /**
  * POST /data
  * Creates a new record.
- * Expects JSON with keys: value, date.
+ * Expects JSON with keys: value, date, and optionally topic.
  */
 app.post('/data', async (req, res) => {
-  const { value, date } = req.body;
-  if (!value || !date) {
+  const { value, date, topic } = req.body;
+  if (value === undefined || !date) {
     return res.status(400).json({ error: 'Value and date are required.' });
   }
   try {
-    const newRecord = new Record({ value: Number(value), date });
+    const newRecord = new Record({ value: Number(value), date, topic: topic || '' });
     await newRecord.save();
     res.status(201).json(newRecord);
   } catch (err) {
@@ -76,14 +83,14 @@ app.post('/data', async (req, res) => {
 /**
  * PUT /data/:id
  * Updates an existing record by id.
- * Expects JSON with keys: value, date.
+ * Expects JSON with keys: value, date, and optionally topic.
  */
 app.put('/data/:id', async (req, res) => {
-  const { value, date } = req.body;
+  const { value, date, topic } = req.body;
   try {
     const updatedRecord = await Record.findByIdAndUpdate(
       req.params.id,
-      { value: Number(value), date },
+      { value: Number(value), date, topic: topic || '' },
       { new: true }
     );
     if (!updatedRecord) {
@@ -97,7 +104,7 @@ app.put('/data/:id', async (req, res) => {
 
 /**
  * DELETE /data/:id
- * Deletes an existing record by id.
+ * Deletes a record by its id.
  */
 app.delete('/data/:id', async (req, res) => {
   try {
@@ -113,14 +120,20 @@ app.delete('/data/:id', async (req, res) => {
 
 /**
  * DELETE /data/all
- * Deletes all records from the database.
+ * Deletes all records.
+ * Optionally, filter by topic using ?topic=YourTopic.
  */
 app.delete('/data/all', async (req, res) => {
+  const topic = req.query.topic;
+  let query = {};
+  if (topic) {
+    query.topic = topic;
+  }
   try {
-    await Record.deleteMany({});
+    await Record.deleteMany(query);
     res.json({ message: 'All records deleted successfully.' });
   } catch (err) {
-    res.status(500).json({ error: 'Server error while deleting all records.' });
+    res.status(500).json({ error: 'Server error while deleting records.' });
   }
 });
 
@@ -134,17 +147,16 @@ app.listen(PORT, () => {
 // ---------------------------
 // MQTT Client Integration
 // ---------------------------
-
-// MQTT Broker Details (as provided)
 const device_id = "Device0001";
 const mqttServer = "broker.hivemq.com";
 const mqttPort = 1883;
 const mqttUser = "semini";
 const mqttPassword = "Semini17";
 const mqttClientId = "hivemq.webclient.1717873306472";
-const mqttTopic = "Methane";
 
-// Configure connection options for the MQTT client
+// Subscribe to the new topic "Garbage" for Ammonia Gas Level
+const mqttTopic = "Garbage";
+
 const mqttOptions = {
   port: mqttPort,
   username: mqttUser,
@@ -153,8 +165,6 @@ const mqttOptions = {
 };
 
 const mqttBrokerUrl = `mqtt://${mqttServer}`;
-
-// Connect to the MQTT broker using the provided options
 const mqttClient = mqtt.connect(mqttBrokerUrl, mqttOptions);
 
 mqttClient.on('connect', () => {
@@ -169,20 +179,17 @@ mqttClient.on('connect', () => {
 });
 
 mqttClient.on('message', async (topic, message) => {
-  // We expect the message to be a numeric value sent as a string.
   const value = parseFloat(message.toString());
   if (isNaN(value)) {
     console.error('Received invalid numeric value from MQTT:', message.toString());
     return;
   }
-  
-  // Calculate the current timestamp on the server (ISO string format)
   const timestamp = new Date().toISOString();
-  
   try {
-    const newRecord = new Record({ value, date: timestamp });
+    // Save the record along with its topic
+    const newRecord = new Record({ value, date: timestamp, topic });
     await newRecord.save();
-    console.log(`Device: ${device_id} - Saved new record from MQTT:`, newRecord);
+    console.log(`Device: ${device_id} - Saved new record from MQTT topic "${topic}":`, newRecord);
   } catch (err) {
     console.error('Error saving record from MQTT message:', err);
   }
