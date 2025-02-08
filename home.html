@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Environmental Monitoring Home</title>
+  <link href="bc-stylesheet.css" rel="stylesheet" type="text/css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    #container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    #header {
+      background-color: #333;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    #header ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+      text-align: center;
+    }
+    #header ul li {
+      display: inline;
+      margin: 0 15px;
+    }
+    #header ul li a {
+      color: #fff;
+      text-decoration: none;
+    }
+    #header h1 a {
+      color: #fff;
+      text-decoration: none;
+    }
+    #content {
+      display: flex;
+      margin-top: 20px;
+    }
+    #right {
+      flex: 3;
+      padding: 20px;
+    }
+    #left {
+      flex: 1;
+      background-color: #eee;
+      padding: 20px;
+    }
+    #footer {
+      background-color: #101d08d7;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .data-container {
+      background-color: #62e04993;
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .data-container h2 {
+      margin: 0;
+      font-size: 24px;
+      color: #333;
+    }
+    .data-container p {
+      font-size: 19px;
+      color: #032e0c;
+    }
+    canvas {
+      max-width: 100%;
+      margin: 20px auto;
+      display: block;
+    }
+  </style>
+  <!-- Include Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div id="container">
+    <div id="header">
+      <div>
+        <ul>
+          <li><a href="#" class="on">Home</a></li>
+          <li><a href="#idea">Idea</a></li>
+          <li><a href="#author">Weekly Report</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+        <h1><a href="#">Rainfall Monitoring System &amp; Ammonia Gas Detector</a></h1>
+      </div>
+    </div>
+    <div id="content">
+      <div id="right">
+        <h2 id="idea">The <em>Idea</em></h2>
+        <p>
+          The Smart Environmental Monitoring Web Application is designed to enhance safety and disaster preparedness by leveraging IoT technology for real-time monitoring of rainfall levels and ammonia gas concentrations. This system provides continuous data collection, automated alerts, and interactive dashboards to help authorities and industries take proactive measures. By tracking rainfall intensity, it aids in flood prevention and climate analysis, while the ammonia gas detector ensures workplace safety by detecting hazardous NH₃ levels and issuing instant warnings.
+        </p>
+        <!-- Data Container with Two Graphs -->
+        <div class="data-container">
+          <h2>Sensor Data Graphs</h2>
+          <!-- Rainfall Level Graph (from Garbage data) -->
+          <canvas id="rainfallChart" width="800" height="400"></canvas>
+          <!-- Ammonia Gas Level Graph (from Methane data) -->
+          <canvas id="ammoniaChart" width="800" height="400"></canvas>
+        </div>
+        <br><br>
+        <h2 id="author">The <em>Author</em></h2>
+        <p>
+          My name is Pavani Semini, and I am a 24-year-old female from Colombo. Currently pursuing Computer Science in IT at CINEC Campus, I am focused on integrating IoT and smart technologies to improve urban living conditions. This project is a testament to my commitment to innovative solutions in environmental monitoring.
+        </p>
+        <h2 id="contact">Contact <em>Us</em></h2>
+        <p>
+          Contact us for any inquiries, support, or feedback. Reach out via phone, email, or our online form. We're here to help!
+        </p>
+      </div>
+      <div id="left">
+        <h2>About <em>Smart Environmental Monitoring</em></h2>
+        <p>
+          Smart Environmental Monitoring is a web-based system that provides real-time data on rainfall levels and ammonia gas concentrations. Designed for disaster management and industrial safety, this platform helps users monitor environmental conditions, receive alerts, and make informed decisions.
+        </p>
+        <h2>About <em>Web Application</em></h2>
+        <p>
+          The Smart Environmental Monitoring Web Application is an advanced platform designed to track and analyze real-time environmental data, focusing on rainfall levels and ammonia gas (NH₃) concentrations. This application integrates IoT-based sensors and cloud computing to provide accurate, timely, and automated monitoring for disaster management and industrial safety.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div id="footer">
+    <p>
+      &copy; 2025 Smart Environmental Monitoring. All Rights Reserved. 
+      <a href="http://validator.w3.org/check/referer">XHTML 1.1</a> | 
+      <a href="http://jigsaw.w3.org/css-validator/check/referer?warning=no&amp;profile=css2">CSS</a> | 
+      design/inspired by <a href="http://www.growldesign.co.uk">growldesign</a>
+    </p>
+  </div>
+  
+  <script>
+    // Render Rainfall Level Chart (Sensor: G - from Garbage)
+    async function renderRainfallChart() {
+      try {
+        const response = await fetch('/data?sensor=G');
+        const records = await response.json();
+        // Sort records by Gdate (ascending)
+        records.sort((a, b) => new Date(a.Gdate) - new Date(b.Gdate));
+        const labels = records.map(record => record.Gdate);
+        const dataPoints = records.map(record => record.Gvalue);
+        
+        const ctx = document.getElementById('rainfallChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Rainfall Level (cm)',
+              data: dataPoints,
+              fill: false,
+              borderColor: 'blue',
+              tension: 0.1
+            }]
+          },
+          options: {
+            scales: {
+              x: { title: { display: true, text: 'Date & Time' } },
+              y: { title: { display: true, text: 'Rainfall Level (cm)' } }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering rainfall chart:', error);
+      }
+    }
+    
+    // Render Ammonia Gas Level Chart (Sensor: M - from Methane)
+    async function renderAmmoniaChart() {
+      try {
+        const response = await fetch('/data?sensor=M');
+        const records = await response.json();
+        // Sort records by Mdate (ascending)
+        records.sort((a, b) => new Date(a.Mdate) - new Date(b.Mdate));
+        const labels = records.map(record => record.Mdate);
+        const dataPoints = records.map(record => record.Mvalue);
+        
+        const ctx = document.getElementById('ammoniaChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Ammonia Gas Level (ppm)',
+              data: dataPoints,
+              fill: false,
+              borderColor: 'red',
+              tension: 0.1
+            }]
+          },
+          options: {
+            scales: {
+              x: { title: { display: true, text: 'Date & Time' } },
+              y: { title: { display: true, text: 'Ammonia Gas Level (ppm)' } }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering ammonia chart:', error);
+      }
+    }
+    
+    // Render both charts when the page loads
+    window.onload = function() {
+      renderRainfallChart();
+      renderAmmoniaChart();
+    };
+  </script>
+</body>
+</html>
