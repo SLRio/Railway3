@@ -3,7 +3,6 @@
 <head>
     <title>Busy City</title>
     <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8" />
-    <!-- External stylesheet if needed -->
     <link href="bc-stylesheet.css" rel="stylesheet" type="text/css" />
     <style>
         body {
@@ -95,69 +94,98 @@
                 <li><a href="#author">Weekly Report</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
-            <h1><a href="#">Rainfall Monitoring System & Ammonia Gas Detector</a></h1>
+            <h1><a href="#">Rainfall Monitoring System &amp; Ammonia Gas Detector</a></h1>
         </div>
     </div>
     <div id="content">
         <div id="right">
             <h2 id="idea">The <em>Idea</em></h2>
-            <p>The Smart Environmental Monitoring Web Application is designed to enhance safety and disaster preparedness by leveraging IoT technology for real-time monitoring of rainfall levels and ammonia gas concentrations. This system provides continuous data collection, automated alerts, and interactive dashboards to help authorities and industries take proactive measures. By tracking rainfall intensity, it aids in flood prevention and climate analysis, while the ammonia gas detector ensures workplace safety by detecting hazardous NH₃ levels and issuing instant warnings. With its user-friendly interface, real-time data visualization, and automated notifications, this web application serves as a reliable solution for environmental monitoring, disaster management, and industrial safety compliance.</p>
+            <p>
+                The Smart Environmental Monitoring Web Application is designed to enhance safety and disaster preparedness by leveraging IoT technology for real-time monitoring of rainfall levels and ammonia gas concentrations. This system provides continuous data collection, automated alerts, and interactive dashboards to help authorities and industries take proactive measures. By tracking rainfall intensity, it aids in flood prevention and climate analysis, while the ammonia gas detector ensures workplace safety by detecting hazardous NH₃ levels and issuing instant warnings. With its user-friendly interface, real-time data visualization, and automated notifications, this web application serves as a reliable solution for environmental monitoring, disaster management, and industrial safety compliance.
+            </p>
             
             <div class="data-container"><b>
                 <h2>Rainfall Level and Ammonia Gas Level</h2>
                 <p>Rainfall Level: <span id="garbageAmount">Loading...</span></p>
-                <p>Ammonia Gas Level: <span id="methaneAmount">Loading...</span></p></b>
-            </div>
+                <p>Ammonia Gas Level: <span id="methaneAmount">Loading...</span></p>
+            </b></div>
             <br/><br/>
 
             <h2 id="author">The <em>Author</em></h2>
-            <p>My name is Pavani Semini, and I am a 24-year-old female from Colombo. Currently pursuing Computer Science in IT at CINEC Campus, I am focused on integrating IoT and smart technologies to improve urban living conditions. This project is a testament to my commitment to innovative solutions in environmental monitoring.</p>
-            <p>I made my first IoT project and have been using XHTML, NodeRed, MQTT, and JavaScript. Other platforms I used include MongoDB, XML, and CSS. For a full list, take a look at my LinkedIn.</p>
+            <p>
+                My name is Pavani Semini, and I am a 24-year-old female from Colombo. Currently pursuing Computer Science in IT at CINEC Campus, I am focused on integrating IoT and smart technologies to improve urban living conditions. This project is a testament to my commitment to innovative solutions in environmental monitoring.
+            </p>
+            <p>
+                I made my first IoT project and have been using XHTML, NodeRed, MQTT, and JavaScript. Other platforms I used include MongoDB, XML, and CSS. For a full list, take a look at my LinkedIn.
+            </p>
             <h2 id="contact">Contact <em>Us</em></h2>
-            <p>Contact us for any inquiries, support, or feedback. Reach out via phone, email, or our online form. We're here to help!</p>
+            <p>
+                Contact us for any inquiries, support, or feedback. Reach out via phone, email, or our online form. We're here to help!
+            </p>
         </div>
         <div id="left">
             <h2>About <em>Smart Environmental Monitoring</em></h2>
-            <p>Smart Environmental Monitoring is a web-based system that provides real-time data on rainfall levels and ammonia gas concentrations. Designed for disaster management and industrial safety, this platform helps users monitor environmental conditions, receive alerts, and make informed decisions.</p>
+            <p>
+                Smart Environmental Monitoring is a web-based system that provides real-time data on rainfall levels and ammonia gas concentrations. Designed for disaster management and industrial safety, this platform helps users monitor environmental conditions, receive alerts, and make informed decisions.
+            </p>
             <h2>About <em>Web Application</em></h2>
-            <p>The Smart Environmental Monitoring Web Application is an advanced platform designed to track and analyze real-time environmental data, focusing on rainfall levels and ammonia gas (NH₃) concentrations. This application integrates IoT-based sensors and cloud computing to provide accurate, timely, and automated monitoring for disaster management and industrial safety.</p>
+            <p>
+                The Smart Environmental Monitoring Web Application is an advanced platform designed to track and analyze real-time environmental data, focusing on rainfall levels and ammonia gas (NH₃) concentrations. This application integrates IoT-based sensors and cloud computing to provide accurate, timely, and automated monitoring for disaster management and industrial safety.
+            </p>
         </div>
     </div>
 </div>
 <div id="footer">
-    <p>Copyright &copy; 2025 Smart Environmental Monitoring. All Rights Reserved.
-        <a href="http://validator.w3.org/check/referer">XHTML 1.1</a> | 
-        <a href="http://jigsaw.w3.org/css-validator/check/referer?warning=no&amp;profile=css2">CSS</a> | 
-        design/inspired by <a href="http://www.growldesign.co.uk">growldesign</a></p>
+    <p>
+        Copyright &copy; 2025 Smart Environmental Monitoring. All Rights Reserved.
+        <a href="http://validator.w3.org/check/referer">XHTML 1.1</a> |
+        <a href="http://jigsaw.w3.org/css-validator/check/referer?warning=no&amp;profile=css2">CSS</a> |
+        design/inspired by <a href="http://www.growldesign.co.uk">growldesign</a>
+    </p>
 </div>
 
 <script>
-  // --- MQTT Client Setup in the Browser ---
-  // Connect to the HiveMQ broker over WebSockets.
-  // Note: For public brokers, WebSocket connection is typically on port 8000 or 8001.
-  const options = {
-    // Generate a random client ID (or set a static one if needed)
+  // --- Fetch the latest Rainfall Value from the Database ---
+  async function updateRainfallValue() {
+    try {
+      const response = await fetch('/data'); // Adjust URL if needed (e.g., full domain)
+      const records = await response.json();
+      if (records.length > 0) {
+        // Sort records by date descending (latest first)
+        records.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // Assume the latest record corresponds to rainfall measurement
+        const latestRecord = records[0];
+        document.getElementById('garbageAmount').innerText = latestRecord.value + " cm";
+      } else {
+        document.getElementById('garbageAmount').innerText = "No Data";
+      }
+    } catch (error) {
+      console.error("Error fetching rainfall value:", error);
+      document.getElementById('garbageAmount').innerText = "Error";
+    }
+  }
+
+  // Call the function on page load and optionally at intervals
+  window.onload = () => {
+    updateRainfallValue();
+    // Optionally, update every 30 seconds:
+    // setInterval(updateRainfallValue, 30000);
+  };
+
+  // --- MQTT Client Setup for Ammonia Gas Level ---
+  const mqttOptions = {
     clientId: "webClient_" + Math.random().toString(16).substr(2, 8),
-    // Uncomment and set these if your broker requires authentication:
+    // If needed, include username and password here:
     // username: "semini",
     // password: "Semini17",
   };
 
-  // Connect using secure websockets (wss). Change to "ws://" if needed.
-  const client = mqtt.connect("wss://broker.hivemq.com:8000/mqtt", options);
+  // Connect to the HiveMQ broker via secure WebSockets
+  const client = mqtt.connect("wss://broker.hivemq.com:8000/mqtt", mqttOptions);
 
   client.on('connect', () => {
     console.log("Connected to MQTT broker");
-
-    // Subscribe to the topics for rainfall and ammonia gas.
-    // Change the topic names if your setup uses different ones.
-    client.subscribe("Rainfall", (err) => {
-      if (err) {
-        console.error("Failed to subscribe to Rainfall topic:", err);
-      } else {
-        console.log("Subscribed to Rainfall topic");
-      }
-    });
+    // Subscribe to only the Methane topic (for ammonia gas data)
     client.subscribe("Methane", (err) => {
       if (err) {
         console.error("Failed to subscribe to Methane topic:", err);
@@ -167,17 +195,10 @@
     });
   });
 
-  // Handle incoming messages
   client.on('message', (topic, message) => {
     const msg = message.toString();
     console.log(`Received message on ${topic}: ${msg}`);
-    
-    // Update the respective HTML element based on the topic.
-    if (topic === "Rainfall") {
-      // Update the Rainfall Level (using the id "garbageAmount")
-      document.getElementById("garbageAmount").innerText = msg + " cm";
-    } else if (topic === "Methane") {
-      // Update the Ammonia Gas Level (using the id "methaneAmount")
+    if (topic === "Methane") {
       document.getElementById("methaneAmount").innerText = msg + " ppm";
     }
   });
@@ -186,6 +207,5 @@
     console.error("MQTT error:", err);
   });
 </script>
-
 </body>
 </html>
