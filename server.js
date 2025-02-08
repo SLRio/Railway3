@@ -16,33 +16,16 @@ mongoose
   .catch(err => console.error('Error connecting to MongoDB:', err));
 
 // ---------------------------
-// Helper Function for Date Formatting
-// ---------------------------
-function getFormattedDate() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = ("0" + (d.getMonth() + 1)).slice(-2);
-  const day = ("0" + d.getDate()).slice(-2);
-  const hours = ("0" + d.getHours()).slice(-2);
-  const minutes = ("0" + d.getMinutes()).slice(-2);
-  const seconds = ("0" + d.getSeconds()).slice(-2);
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
-// ---------------------------
 // Define Mongoose Schema and Model
 // ---------------------------
-// The schema now holds two types of sensor data:
-// - Rainfall Level: saved as Gdate and Gvalue (from topic "Garbage")
-// - Ammonia Gas Level: saved as Mdate and Mvalue (from topic "Methane")
 const sensorDataSchema = new mongoose.Schema({
-  Gdate: { type: String, default: null },
   Gvalue: { type: Number, default: null },
-  Mdate: { type: String, default: null },
-  Mvalue: { type: Number, default: null }
+  Gdate: { type: String, default: null },
+  Mvalue: { type: Number, default: null },
+  Mdate: { type: String, default: null }
 });
 
-// Include a virtual "id" when converting to JSON
+// Include virtual "id" when converting to JSON
 sensorDataSchema.set('toJSON', { virtuals: true });
 
 const Record = mongoose.model('Record', sensorDataSchema);
@@ -52,7 +35,8 @@ const Record = mongoose.model('Record', sensorDataSchema);
 // ---------------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Serve static files (e.g., home.html, Agraph.html, Acurd.html) from the current directory
+
+// Serve static files (HTML pages, etc.) from the current directory
 app.use(express.static(__dirname));
 
 // ---------------------------
@@ -62,8 +46,8 @@ app.use(express.static(__dirname));
 /**
  * GET /data
  * Retrieves records from the database.
- * Use query parameter sensor=G for Rainfall data (Gdate, Gvalue)
- * or sensor=M for Ammonia Gas data (Mdate, Mvalue)
+ * Use query parameter sensor=G for rainfall data (Gvalue, Gdate)
+ * or sensor=M for ammonia gas data (Mvalue, Mdate)
  */
 app.get('/data', async (req, res) => {
   const sensor = req.query.sensor;
@@ -84,9 +68,9 @@ app.get('/data', async (req, res) => {
 /**
  * POST /data
  * Creates a new record.
- * Expects JSON with appropriate fields:
- * For sensor "G": provide Gdate and Gvalue.
- * For sensor "M": provide Mdate and Mvalue.
+ * Expects JSON with sensor data:
+ * For rainfall data, include Gvalue and Gdate.
+ * For ammonia gas data, include Mvalue and Mdate.
  */
 app.post('/data', async (req, res) => {
   const { Gvalue, Gdate, Mvalue, Mdate } = req.body;
@@ -104,7 +88,7 @@ app.post('/data', async (req, res) => {
 
 /**
  * PUT /data/:id
- * Updates an existing record.
+ * Updates an existing record by id.
  * Expects JSON with sensor data.
  */
 app.put('/data/:id', async (req, res) => {
@@ -126,7 +110,7 @@ app.put('/data/:id', async (req, res) => {
 
 /**
  * DELETE /data/:id
- * Deletes a record by id.
+ * Deletes an existing record by id.
  */
 app.delete('/data/:id', async (req, res) => {
   try {
@@ -177,8 +161,9 @@ const mqttPort = 1883;
 const mqttUser = "semini";
 const mqttPassword = "Semini17";
 const mqttClientId = "hivemq.webclient.1717873306472";
+const mqttBrokerUrl = `mqtt://${mqttServer}`;
 
-const mqttClient = mqtt.connect(`mqtt://${mqttServer}`, {
+const mqttClient = mqtt.connect(mqttBrokerUrl, {
   port: mqttPort,
   username: mqttUser,
   password: mqttPassword,
@@ -187,19 +172,19 @@ const mqttClient = mqtt.connect(`mqtt://${mqttServer}`, {
 
 mqttClient.on('connect', () => {
   console.log('Connected to MQTT broker');
-  // Subscribe to both topics:
+  // Subscribe to both topics
   mqttClient.subscribe("Garbage", (err) => {
     if (err) {
-      console.error('Error subscribing to topic "Garbage":', err);
+      console.error('Error subscribing to "Garbage":', err);
     } else {
-      console.log('Subscribed to topic: Garbage');
+      console.log('Subscribed to "Garbage"');
     }
   });
   mqttClient.subscribe("Methane", (err) => {
     if (err) {
-      console.error('Error subscribing to topic "Methane":', err);
+      console.error('Error subscribing to "Methane":', err);
     } else {
-      console.log('Subscribed to topic: Methane');
+      console.log('Subscribed to "Methane"');
     }
   });
 });
@@ -207,28 +192,28 @@ mqttClient.on('connect', () => {
 mqttClient.on('message', async (topic, message) => {
   const value = parseFloat(message.toString());
   if (isNaN(value)) {
-    console.error('Received invalid numeric value from MQTT:', message.toString());
+    console.error('Received invalid numeric value:', message.toString());
     return;
   }
   
-  // Use the formatted date
-  const timestamp = getFormattedDate();
+  // Use the current timestamp in ISO format (you can modify the format if desired)
+  const timestamp = new Date().toISOString();
   
   try {
     if (topic === "Garbage") {
-      // Save as Rainfall Level reading (Gdate, Gvalue)
-      const newRecord = new Record({ Gdate: timestamp, Gvalue: value });
+      // Save as rainfall reading: Gvalue and Gdate
+      const newRecord = new Record({ Gvalue: value, Gdate: timestamp });
       await newRecord.save();
-      console.log(`Device: ${device_id} - Saved Garbage record as Rainfall Level:`, newRecord);
+      console.log(`Saved Garbage record:`, newRecord);
     } else if (topic === "Methane") {
-      // Save as Ammonia Gas Level reading (Mdate, Mvalue)
-      const newRecord = new Record({ Mdate: timestamp, Mvalue: value });
+      // Save as ammonia gas reading: Mvalue and Mdate
+      const newRecord = new Record({ Mvalue: value, Mdate: timestamp });
       await newRecord.save();
-      console.log(`Device: ${device_id} - Saved Methane record as Ammonia Gas Level:`, newRecord);
+      console.log(`Saved Methane record:`, newRecord);
     } else {
-      console.log(`Received message from unknown topic "${topic}":`, message.toString());
+      console.log('Received message from unknown topic:', topic);
     }
   } catch (err) {
-    console.error('Error saving record from MQTT message:', err);
+    console.error('Error saving MQTT message record:', err);
   }
 });
