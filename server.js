@@ -16,9 +16,23 @@ mongoose
   .catch(err => console.error('Error connecting to MongoDB:', err));
 
 // ---------------------------
+// Helper Function for Date Formatting
+// ---------------------------
+function getFormattedDate() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = ("0" + (d.getMonth() + 1)).slice(-2);
+  const day = ("0" + d.getDate()).slice(-2);
+  const hours = ("0" + d.getHours()).slice(-2);
+  const minutes = ("0" + d.getMinutes()).slice(-2);
+  const seconds = ("0" + d.getSeconds()).slice(-2);
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+// ---------------------------
 // Define Mongoose Schema and Model
 // ---------------------------
-// This schema now holds two types of sensor data:
+// The schema now holds two types of sensor data:
 // - Rainfall Level: saved as Gdate and Gvalue (from topic "Garbage")
 // - Ammonia Gas Level: saved as Mdate and Mvalue (from topic "Methane")
 const sensorDataSchema = new mongoose.Schema({
@@ -28,7 +42,7 @@ const sensorDataSchema = new mongoose.Schema({
   Mvalue: { type: Number, default: null }
 });
 
-// Include virtual "id" when converting to JSON
+// Include a virtual "id" when converting to JSON
 sensorDataSchema.set('toJSON', { virtuals: true });
 
 const Record = mongoose.model('Record', sensorDataSchema);
@@ -38,8 +52,7 @@ const Record = mongoose.model('Record', sensorDataSchema);
 // ---------------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files (home.html, Agraph.html, Acurd.html, etc.) from the current directory
+// Serve static files (e.g., home.html, Agraph.html, Acurd.html) from the current directory
 app.use(express.static(__dirname));
 
 // ---------------------------
@@ -77,7 +90,6 @@ app.get('/data', async (req, res) => {
  */
 app.post('/data', async (req, res) => {
   const { Gvalue, Gdate, Mvalue, Mdate } = req.body;
-  // For simplicity, assume one of the sensor values is provided.
   if ((Gvalue === undefined || !Gdate) && (Mvalue === undefined || !Mdate)) {
     return res.status(400).json({ error: 'Required sensor data missing.' });
   }
@@ -159,7 +171,6 @@ app.listen(PORT, () => {
 // ---------------------------
 // MQTT Client Integration
 // ---------------------------
-
 const device_id = "Device0001";
 const mqttServer = "broker.hivemq.com";
 const mqttPort = 1883;
@@ -167,9 +178,6 @@ const mqttUser = "semini";
 const mqttPassword = "Semini17";
 const mqttClientId = "hivemq.webclient.1717873306472";
 
-// In this updated setup:
-// - Data from the topic "Garbage" is used for Rainfall Level and stored as Gdate and Gvalue.
-// - Data from the topic "Methane" is used for Ammonia Gas Level and stored as Mdate and Mvalue.
 const mqttClient = mqtt.connect(`mqtt://${mqttServer}`, {
   port: mqttPort,
   username: mqttUser,
@@ -179,7 +187,7 @@ const mqttClient = mqtt.connect(`mqtt://${mqttServer}`, {
 
 mqttClient.on('connect', () => {
   console.log('Connected to MQTT broker');
-  // Subscribe to both topics
+  // Subscribe to both topics:
   mqttClient.subscribe("Garbage", (err) => {
     if (err) {
       console.error('Error subscribing to topic "Garbage":', err);
@@ -203,7 +211,9 @@ mqttClient.on('message', async (topic, message) => {
     return;
   }
   
-  const timestamp = new Date().toISOString();
+  // Use the formatted date
+  const timestamp = getFormattedDate();
+  
   try {
     if (topic === "Garbage") {
       // Save as Rainfall Level reading (Gdate, Gvalue)
