@@ -81,8 +81,6 @@
             color: #032e0c;
         }
     </style>
-    <!-- Include the MQTT.js library from a CDN -->
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
 <div id="container">
@@ -107,6 +105,7 @@
             <div class="data-container"><b>
                 <h2>Rainfall Level and Ammonia Gas Level</h2>
                 <p>Rainfall Level: <span id="garbageAmount">Loading...</span></p>
+                <!-- For Ammonia Gas Level, we now fetch the newest DB record where topic = "Garbage" -->
                 <p>Ammonia Gas Level: <span id="methaneAmount">Loading...</span></p>
             </b></div>
             <br/><br/>
@@ -145,15 +144,15 @@
 </div>
 
 <script>
-  // --- Fetch the latest Rainfall Value from the Database ---
+  // --- Fetch the Latest Rainfall Value from the Database ---
   async function updateRainfallValue() {
     try {
-      const response = await fetch('/data'); // Adjust URL if needed (e.g., full domain)
+      // Assuming rainfall data is stored with topic "Rainfall"
+      const response = await fetch('/data?topic=Rainfall');
       const records = await response.json();
       if (records.length > 0) {
-        // Sort records by date descending (latest first)
+        // Sort by date descending to get the newest record first
         records.sort((a, b) => new Date(b.date) - new Date(a.date));
-        // Assume the latest record corresponds to rainfall measurement
         const latestRecord = records[0];
         document.getElementById('garbageAmount').innerText = latestRecord.value + " cm";
       } else {
@@ -165,47 +164,35 @@
     }
   }
 
-  // Call the function on page load and optionally at intervals
+  // --- Fetch the Latest Ammonia Gas Value from the Database (Topic: Garbage) ---
+  async function updateAmmoniaValue() {
+    try {
+      const response = await fetch('/data?topic=Garbage');
+      const records = await response.json();
+      if (records.length > 0) {
+        // Sort by date descending to get the newest record first
+        records.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const latestRecord = records[0];
+        document.getElementById('methaneAmount').innerText = latestRecord.value + " ppm";
+      } else {
+        document.getElementById('methaneAmount').innerText = "No Data";
+      }
+    } catch (error) {
+      console.error("Error fetching ammonia gas value:", error);
+      document.getElementById('methaneAmount').innerText = "Error";
+    }
+  }
+
+  // Call both update functions when the page loads.
   window.onload = () => {
     updateRainfallValue();
-    // Optionally, update every 30 seconds:
-    // setInterval(updateRainfallValue, 30000);
+    updateAmmoniaValue();
+    // Optionally, update values at intervals (e.g., every 30 seconds):
+    // setInterval(() => {
+    //   updateRainfallValue();
+    //   updateAmmoniaValue();
+    // }, 30000);
   };
-
-  // --- MQTT Client Setup for Ammonia Gas Level ---
-  const mqttOptions = {
-    clientId: "webClient_" + Math.random().toString(16).substr(2, 8),
-    // If needed, include username and password here:
-    // username: "semini",
-    // password: "Semini17",
-  };
-
-  // Connect to the HiveMQ broker via secure WebSockets
-  const client = mqtt.connect("wss://broker.hivemq.com:8000/mqtt", mqttOptions);
-
-  client.on('connect', () => {
-    console.log("Connected to MQTT broker");
-    // Subscribe to only the Methane topic (for ammonia gas data)
-    client.subscribe("Methane", (err) => {
-      if (err) {
-        console.error("Failed to subscribe to Methane topic:", err);
-      } else {
-        console.log("Subscribed to Methane topic");
-      }
-    });
-  });
-
-  client.on('message', (topic, message) => {
-    const msg = message.toString();
-    console.log(`Received message on ${topic}: ${msg}`);
-    if (topic === "Methane") {
-      document.getElementById("methaneAmount").innerText = msg + " ppm";
-    }
-  });
-
-  client.on('error', (err) => {
-    console.error("MQTT error:", err);
-  });
 </script>
 </body>
 </html>
