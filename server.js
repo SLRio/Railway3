@@ -18,16 +18,20 @@ mongoose
 // ---------------------------
 // Define Mongoose Schema and Model
 // ---------------------------
-const recordSchema = new mongoose.Schema({
-  value: Number,   // numeric sensor value
-  date: String,    // timestamp (ISO format)
-  topic: String    // MQTT topic (e.g., "Garbage", "Rainfall", etc.)
+// This schema now holds two types of sensor data:
+// - Rainfall Level: saved as Gdate and Gvalue (from topic "Garbage")
+// - Ammonia Gas Level: saved as Mdate and Mvalue (from topic "Methane")
+const sensorDataSchema = new mongoose.Schema({
+  Gdate: { type: String, default: null },
+  Gvalue: { type: Number, default: null },
+  Mdate: { type: String, default: null },
+  Mvalue: { type: Number, default: null }
 });
 
 // Include virtual "id" when converting to JSON
-recordSchema.set('toJSON', { virtuals: true });
+sensorDataSchema.set('toJSON', { virtuals: true });
 
-const Record = mongoose.model('Record', recordSchema);
+const Record = mongoose.model('Record', sensorDataSchema);
 
 // ---------------------------
 // Middleware Setup
@@ -35,7 +39,7 @@ const Record = mongoose.model('Record', recordSchema);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (graph.html, crud.html, home.html, Agraph.html, Acurd.html, etc.) from the current directory
+// Serve static files (home.html, Agraph.html, Acurd.html, etc.) from the current directory
 app.use(express.static(__dirname));
 
 // ---------------------------
@@ -45,13 +49,16 @@ app.use(express.static(__dirname));
 /**
  * GET /data
  * Retrieves records from the database.
- * Optionally, filter by topic using ?topic=YourTopic
+ * Use query parameter sensor=G for Rainfall data (Gdate, Gvalue)
+ * or sensor=M for Ammonia Gas data (Mdate, Mvalue)
  */
 app.get('/data', async (req, res) => {
-  const topic = req.query.topic;
+  const sensor = req.query.sensor;
   let query = {};
-  if (topic) {
-    query.topic = topic;
+  if (sensor === 'G') {
+    query = { Gvalue: { $ne: null } };
+  } else if (sensor === 'M') {
+    query = { Mvalue: { $ne: null } };
   }
   try {
     const records = await Record.find(query);
@@ -64,15 +71,18 @@ app.get('/data', async (req, res) => {
 /**
  * POST /data
  * Creates a new record.
- * Expects JSON with keys: value, date, and optionally topic.
+ * Expects JSON with appropriate fields:
+ * For sensor "G": provide Gdate and Gvalue.
+ * For sensor "M": provide Mdate and Mvalue.
  */
 app.post('/data', async (req, res) => {
-  const { value, date, topic } = req.body;
-  if (value === undefined || !date) {
-    return res.status(400).json({ error: 'Value and date are required.' });
+  const { Gvalue, Gdate, Mvalue, Mdate } = req.body;
+  // For simplicity, assume one of the sensor values is provided.
+  if ((Gvalue === undefined || !Gdate) && (Mvalue === undefined || !Mdate)) {
+    return res.status(400).json({ error: 'Required sensor data missing.' });
   }
   try {
-    const newRecord = new Record({ value: Number(value), date, topic: topic || '' });
+    const newRecord = new Record({ Gvalue, Gdate, Mvalue, Mdate });
     await newRecord.save();
     res.status(201).json(newRecord);
   } catch (err) {
@@ -82,15 +92,15 @@ app.post('/data', async (req, res) => {
 
 /**
  * PUT /data/:id
- * Updates an existing record by id.
- * Expects JSON with keys: value, date, and optionally topic.
+ * Updates an existing record.
+ * Expects JSON with sensor data.
  */
 app.put('/data/:id', async (req, res) => {
-  const { value, date, topic } = req.body;
+  const { Gvalue, Gdate, Mvalue, Mdate } = req.body;
   try {
     const updatedRecord = await Record.findByIdAndUpdate(
       req.params.id,
-      { value: Number(value), date, topic: topic || '' },
+      { Gvalue, Gdate, Mvalue, Mdate },
       { new: true }
     );
     if (!updatedRecord) {
@@ -104,7 +114,7 @@ app.put('/data/:id', async (req, res) => {
 
 /**
  * DELETE /data/:id
- * Deletes a record by its id.
+ * Deletes a record by id.
  */
 app.delete('/data/:id', async (req, res) => {
   try {
@@ -121,17 +131,19 @@ app.delete('/data/:id', async (req, res) => {
 /**
  * DELETE /data/all
  * Deletes all records.
- * Optionally, filter by topic using ?topic=YourTopic.
+ * Optional: Use query parameter sensor=G or sensor=M to delete specific sensor data.
  */
 app.delete('/data/all', async (req, res) => {
-  const topic = req.query.topic;
+  const sensor = req.query.sensor;
   let query = {};
-  if (topic) {
-    query.topic = topic;
+  if (sensor === 'G') {
+    query = { Gvalue: { $ne: null } };
+  } else if (sensor === 'M') {
+    query = { Mvalue: { $ne: null } };
   }
   try {
     await Record.deleteMany(query);
-    res.json({ message: 'All records deleted successfully.' });
+    res.json({ message: 'Records deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: 'Server error while deleting records.' });
   }
@@ -147,6 +159,7 @@ app.listen(PORT, () => {
 // ---------------------------
 // MQTT Client Integration
 // ---------------------------
+
 const device_id = "Device0001";
 const mqttServer = "broker.hivemq.com";
 const mqttPort = 1883;
@@ -154,26 +167,31 @@ const mqttUser = "semini";
 const mqttPassword = "Semini17";
 const mqttClientId = "hivemq.webclient.1717873306472";
 
-// Subscribe to the new topic "Garbage" for Ammonia Gas Level
-const mqttTopic = "Garbage";
-
-const mqttOptions = {
+// In this updated setup:
+// - Data from the topic "Garbage" is used for Rainfall Level and stored as Gdate and Gvalue.
+// - Data from the topic "Methane" is used for Ammonia Gas Level and stored as Mdate and Mvalue.
+const mqttClient = mqtt.connect(`mqtt://${mqttServer}`, {
   port: mqttPort,
   username: mqttUser,
   password: mqttPassword,
   clientId: mqttClientId
-};
-
-const mqttBrokerUrl = `mqtt://${mqttServer}`;
-const mqttClient = mqtt.connect(mqttBrokerUrl, mqttOptions);
+});
 
 mqttClient.on('connect', () => {
   console.log('Connected to MQTT broker');
-  mqttClient.subscribe(mqttTopic, (err) => {
+  // Subscribe to both topics
+  mqttClient.subscribe("Garbage", (err) => {
     if (err) {
-      console.error(`Error subscribing to topic "${mqttTopic}":`, err);
+      console.error('Error subscribing to topic "Garbage":', err);
     } else {
-      console.log(`Subscribed to topic: ${mqttTopic}`);
+      console.log('Subscribed to topic: Garbage');
+    }
+  });
+  mqttClient.subscribe("Methane", (err) => {
+    if (err) {
+      console.error('Error subscribing to topic "Methane":', err);
+    } else {
+      console.log('Subscribed to topic: Methane');
     }
   });
 });
@@ -184,12 +202,22 @@ mqttClient.on('message', async (topic, message) => {
     console.error('Received invalid numeric value from MQTT:', message.toString());
     return;
   }
+  
   const timestamp = new Date().toISOString();
   try {
-    // Save the record along with its topic
-    const newRecord = new Record({ value, date: timestamp, topic });
-    await newRecord.save();
-    console.log(`Device: ${device_id} - Saved new record from MQTT topic "${topic}":`, newRecord);
+    if (topic === "Garbage") {
+      // Save as Rainfall Level reading (Gdate, Gvalue)
+      const newRecord = new Record({ Gdate: timestamp, Gvalue: value });
+      await newRecord.save();
+      console.log(`Device: ${device_id} - Saved Garbage record as Rainfall Level:`, newRecord);
+    } else if (topic === "Methane") {
+      // Save as Ammonia Gas Level reading (Mdate, Mvalue)
+      const newRecord = new Record({ Mdate: timestamp, Mvalue: value });
+      await newRecord.save();
+      console.log(`Device: ${device_id} - Saved Methane record as Ammonia Gas Level:`, newRecord);
+    } else {
+      console.log(`Received message from unknown topic "${topic}":`, message.toString());
+    }
   } catch (err) {
     console.error('Error saving record from MQTT message:', err);
   }
