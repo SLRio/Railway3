@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CRUD Page</title>
+  <style>
+    table, th, td {
+      border: 1px solid #333;
+      border-collapse: collapse;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>CRUD Operations</h1>
+  
+  <!-- Form to add a new record -->
+  <h2>Add New Record</h2>
+  <form id="addForm">
+    <label for="value">Value:</label>
+    <input type="number" id="value" name="value" required>
+    <label for="date">Date:</label>
+    <input type="date" id="date" name="date" required>
+    <button type="submit">Add Record</button>
+  </form>
+  
+  <!-- Table to display all records -->
+  <h2>Records</h2>
+  <table id="recordsTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Value</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Rows will be dynamically populated here -->
+    </tbody>
+  </table>
+  
+  <script>
+    // Fetch all records from the server
+    async function fetchRecords() {
+      const response = await fetch('/data');
+      return await response.json();
+    }
+    
+    // Add a new record via POST
+    async function addRecord(record) {
+      const response = await fetch('/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+      return await response.json();
+    }
+    
+    // Update an existing record via PUT
+    async function updateRecord(id, record) {
+      const response = await fetch('/data/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+      return await response.json();
+    }
+    
+    // Delete a record via DELETE
+    async function deleteRecord(id) {
+      const response = await fetch('/data/' + id, { method: 'DELETE' });
+      return await response.json();
+    }
+    
+    // Populate the HTML table with records
+    function populateTable(records) {
+      const tbody = document.querySelector('#recordsTable tbody');
+      tbody.innerHTML = ''; // Clear any existing rows
+      
+      records.forEach(record => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${record.id}</td>
+          <td>${record.value}</td>
+          <td>${record.date}</td>
+          <td>
+            <button onclick="handleEdit('${record.id}', '${record.value}', '${record.date}')">Edit</button>
+            <button onclick="handleDelete('${record.id}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    
+    // Load and display all records
+    async function loadRecords() {
+      const records = await fetchRecords();
+      populateTable(records);
+    }
+    
+    // Handle the form submission to add a new record
+    document.getElementById('addForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const value = document.getElementById('value').value;
+      const date = document.getElementById('date').value;
+      await addRecord({ value, date });
+      this.reset();
+      loadRecords();
+    });
+    
+    // Handle editing a record using prompt dialogs
+    window.handleEdit = async function(id, currentValue, currentDate) {
+      const newValue = prompt("Enter new value:", currentValue);
+      if (newValue === null) return; // Cancelled
+      
+      const newDate = prompt("Enter new date (YYYY-MM-DD):", currentDate);
+      if (newDate === null) return; // Cancelled
+      
+      await updateRecord(id, { value: newValue, date: newDate });
+      loadRecords();
+    }
+    
+    // Handle deleting a record
+    window.handleDelete = async function(id) {
+      if (confirm("Are you sure you want to delete this record?")) {
+        await deleteRecord(id);
+        loadRecords();
+      }
+    }
+    
+    // Initial load of records when the page opens
+    loadRecords();
+  </script>
+</body>
+</html>
