@@ -110,6 +110,18 @@ app.delete('/data/:id', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+/**
+ * DELETE /data/all
+ * Deletes all records from the database.
+ */
+app.delete('/data/all', async (req, res) => {
+  try {
+    await Record.deleteMany({});
+    res.json({ message: 'All records deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while deleting all records.' });
+  }
+});
 
 // ---------------------------
 // Start the Express Server
