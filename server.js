@@ -110,6 +110,7 @@ app.delete('/data/:id', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 /**
  * DELETE /data/all
  * Deletes all records from the database.
