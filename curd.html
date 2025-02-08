@@ -2,52 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CRUD Page</title>
+  <title>CRUD Operations and Live Feed</title>
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    /* Two-column layout */
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .left, .right {
+      box-sizing: border-box;
+      padding: 20px;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+    }
+    .left {
+      flex: 2;
+      min-width: 300px;
+    }
+    .right {
+      flex: 1;
+      min-width: 250px;
+    }
     table, th, td {
       border: 1px solid #333;
       border-collapse: collapse;
       padding: 8px;
     }
+    table {
+      width: 100%;
+      margin-top: 10px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      border-bottom: 1px solid #ccc;
+      padding: 5px;
+    }
   </style>
 </head>
 <body>
-  <h1>CRUD Operations</h1>
-  
-  <!-- Form to add a new record -->
-  <h2>Add New Record</h2>
-  <form id="addForm">
-    <label for="value">Value:</label>
-    <input type="number" id="value" name="value" required>
-    <label for="date">Date:</label>
-    <input type="date" id="date" name="date" required>
-    <button type="submit">Add Record</button>
-  </form>
-  
-  <!-- Table to display all records -->
-  <h2>Records</h2>
-  <table id="recordsTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Value</th>
-        <th>Date</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- Rows will be dynamically populated here -->
-    </tbody>
-  </table>
+  <h1>CRUD Operations and Live Feed</h1>
+  <div class="container">
+    <!-- Left: CRUD operations -->
+    <div class="left">
+      <h2>Add New Record</h2>
+      <form id="addForm">
+        <label for="value">Value:</label>
+        <input type="number" id="value" name="value" required>
+        <br><br>
+        <label for="date">Date:</label>
+        <input type="date" id="date" name="date" required>
+        <br><br>
+        <button type="submit">Add Record</button>
+      </form>
+      
+      <h2>Records</h2>
+      <table id="recordsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Value</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- CRUD table rows will be injected here -->
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Right: Live Feed of new records -->
+    <div class="right">
+      <h2>Live Feed</h2>
+      <ul id="liveFeed">
+        <!-- Live feed entries will be injected here -->
+      </ul>
+    </div>
+  </div>
   
   <script>
+    // ---------------------------
+    // CRUD Functions
+    // ---------------------------
+    
     // Fetch all records from the server
     async function fetchRecords() {
       const response = await fetch('/data');
       return await response.json();
     }
     
-    // Add a new record via POST
+    // Add a new record
     async function addRecord(record) {
       const response = await fetch('/data', {
         method: 'POST',
@@ -57,7 +113,7 @@
       return await response.json();
     }
     
-    // Update an existing record via PUT
+    // Update an existing record
     async function updateRecord(id, record) {
       const response = await fetch('/data/' + id, {
         method: 'PUT',
@@ -67,39 +123,65 @@
       return await response.json();
     }
     
-    // Delete a record via DELETE
+    // Delete a record
     async function deleteRecord(id) {
       const response = await fetch('/data/' + id, { method: 'DELETE' });
       return await response.json();
     }
     
-    // Populate the HTML table with records
+    // Populate the main table with records
     function populateTable(records) {
       const tbody = document.querySelector('#recordsTable tbody');
-      tbody.innerHTML = ''; // Clear any existing rows
+      tbody.innerHTML = ''; // Clear existing rows
       
       records.forEach(record => {
+        // Note: When using Mongoose, the _id property is used as the unique identifier.
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${record.id}</td>
+          <td>${record._id}</td>
           <td>${record.value}</td>
           <td>${record.date}</td>
           <td>
-            <button onclick="handleEdit('${record.id}', '${record.value}', '${record.date}')">Edit</button>
-            <button onclick="handleDelete('${record.id}')">Delete</button>
+            <button onclick="handleEdit('${record._id}', '${record.value}', '${record.date}')">Edit</button>
+            <button onclick="handleDelete('${record._id}')">Delete</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
     }
     
-    // Load and display all records
+    // ---------------------------
+    // Live Feed Functions
+    // ---------------------------
+    
+    // Populate the live feed list with the most recent records
+    function populateLiveFeed(records) {
+      // Sort records by date descending (most recent first)
+      records.sort((a, b) => new Date(b.date) - new Date(a.date));
+      const feed = document.getElementById('liveFeed');
+      feed.innerHTML = '';
+      
+      // Limit the live feed to the latest 10 records (or as desired)
+      const latestRecords = records.slice(0, 10);
+      latestRecords.forEach(record => {
+        const li = document.createElement('li');
+        li.textContent = `Value: ${record.value} at ${record.date}`;
+        feed.appendChild(li);
+      });
+    }
+    
+    // Load records and update both table and live feed
     async function loadRecords() {
       const records = await fetchRecords();
       populateTable(records);
+      populateLiveFeed(records);
     }
     
-    // Handle the form submission to add a new record
+    // ---------------------------
+    // CRUD Event Handlers
+    // ---------------------------
+    
+    // Handle form submission for adding a new record
     document.getElementById('addForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const value = document.getElementById('value').value;
@@ -112,10 +194,10 @@
     // Handle editing a record using prompt dialogs
     window.handleEdit = async function(id, currentValue, currentDate) {
       const newValue = prompt("Enter new value:", currentValue);
-      if (newValue === null) return; // Cancelled
+      if (newValue === null) return; // cancelled
       
       const newDate = prompt("Enter new date (YYYY-MM-DD):", currentDate);
-      if (newDate === null) return; // Cancelled
+      if (newDate === null) return; // cancelled
       
       await updateRecord(id, { value: newValue, date: newDate });
       loadRecords();
@@ -129,8 +211,15 @@
       }
     }
     
-    // Initial load of records when the page opens
+    // ---------------------------
+    // Initial Load & Polling
+    // ---------------------------
+    
+    // Initial load of records
     loadRecords();
+    
+    // Poll for new data every 5 seconds to update the live feed and table
+    setInterval(loadRecords, 5000);
   </script>
 </body>
 </html>
